@@ -3,7 +3,11 @@
 module Api
   module V1
     class BooksController < ApplicationController
+      include ActionController::HttpAuthentication::Token
+
       MAX_PAGINATION_LIMIT=100
+      before_action :authenticate_user,only: [:create,:destroy]
+
       def index
         books=Book.limit(limit).offset(params[:offset])#ga akan masalah kalo ga ngasih isi param soalnya kalo nill berarti kya g ada batesan gtu
         render json: BooksRepresenter.new(books).as_json
@@ -31,6 +35,16 @@ module Api
       end
       private 
 
+      def authenticate_user
+        # binding.irb
+        #authorization: bearer <token> di underskor karena kita tidak peduli
+        token,_options=token_and_options(request)
+        user_id=AuthenticationTokenService.decode(token)
+        # raise user_id.inspect
+        User.find(user_id)
+      rescue ActiveRecord::RecordNotFound,JWT::DecodeError
+        render status: :unauthorized 
+      end
       def limit
         [params.fetch(:limit,MAX_PAGINATION_LIMIT).to_i,MAX_PAGINATION_LIMIT].min
       end
